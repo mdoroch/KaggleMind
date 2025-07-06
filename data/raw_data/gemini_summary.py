@@ -100,7 +100,7 @@ def parse_json(raw_data):
     
 if __name__ == "__main__":
     
-    client = genai.Client(api_key="AIzaSyDsHBPS47qp1m3qmUFsUbZs3f7eFGHbccM")
+    client = genai.Client(api_key=os.environ['GEMINI_KEY'])
     
     parser = argparse.ArgumentParser(description="Scrape Kaggle discussion links from competition leaderboard pages.")
 

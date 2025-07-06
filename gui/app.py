@@ -7,6 +7,7 @@ import google.generativeai as genai
 
 import json5
 import tqdm
+import os
 import re
 
 # Page setup
@@ -50,7 +51,7 @@ def load_models():
             records = json.load(f)
         
         # Configure Gemini
-        genai.configure(api_key="AIzaSyDsHBPS47qp1m3qmUFsUbZs3f7eFGHbccM")  # Use st.secrets for production!
+        genai.configure(api_key=os.environ['GEMINI_KEY'])  # Use st.secrets for production!
         llm = genai.GenerativeModel("gemini-2.0-flash")
     
     except Exception as e:
