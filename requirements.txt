@@ -1,0 +1,9 @@
+streamlit
+sentence-transformers
+faiss-cpu
+numpy
+google-generativeai
+selenium
+beautifulsoup4
+json5
+tqdm
