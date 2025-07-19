@@ -2,9 +2,21 @@ import os
 import json
 import faiss
 import numpy as np
+import argparse
 from sentence_transformers import SentenceTransformer
 
 if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser(description="Scrape Kaggle discussion links from competition leaderboard pages.")
+
+    parser.add_argument(
+        "--output_file", 
+        type=str, 
+        default="models/rag_index/feature_index.faiss",
+        help="Name of the output faiss index file"
+    )
+    
+    args = parser.parse_args()
 
     model = SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -19,9 +31,6 @@ if __name__ == "__main__":
     index = faiss.IndexFlatL2(dimension)  # или IndexIDMap(IndexFlatL2(d)) если нужны ID
     index.add(embeddings)
 
-    faiss.write_index(index, "models/rag_index/feature_index.faiss")
-
-    # with open("records.json", "w", encoding="utf-8") as f:
-    #     json.dump([{"text": text} for text in texts], f, ensure_ascii=False, indent=2)
+    faiss.write_index(index, args.output_file)
     
     

@@ -8,16 +8,13 @@ from tqdm import tqdm
 import time
 import json
 import argparse
-
+import re
 import os
 from concurrent.futures import ThreadPoolExecutor
 
 
 options = Options()
 options.headless = True
-# options.add_argument("--user-data-dir=/Users/micheldoroch/Library/Application Support/Google/Chrome")
-
-# options.add_argument("--profile-directory=Default")
 
 
 driver = webdriver.Chrome(options=options)
@@ -68,7 +65,11 @@ def parse_competition_overview(competition_slug):
     '''
     Parse competition overview and evaluation.
     '''
-
+    
+    if '/' in competition_slug:
+        
+        competition_slug = re.search(r'/competitions/([^/?#]+)', competition_slug).group(1)
+        
     url = f"https://www.kaggle.com/competitions/{competition_slug}/data"
 
     driver.get(url)
@@ -83,16 +84,17 @@ def parse_competition_overview(competition_slug):
 
 def parse_competition_data_desc(competition_slug):
 
+    if '/' in competition_slug:
+        
+        competition_slug = re.search(r'/competitions/([^/?#]+)', competition_slug).group(1)
+    
     url = f"https://www.kaggle.com/competitions/{competition_slug}/overview"
 
     driver.get(url)
 
     time.sleep(3)
-    # wait.until(EC.presence_of_all_elements_located((By.TAG_NAME, "body")))
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
-
-    # driver.quit()
 
     feature_description = soup.get_text(separator=" ", strip=True)
     
@@ -112,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_dir", 
         type=str, 
-        default="../raw_dataset", 
+        default="data/raw_dataset", 
         help="Directory where the output file will be saved"
     )
     
@@ -133,6 +135,7 @@ if __name__ == "__main__":
     if args.comp_list:
         
         with open('tabular_competitions.txt', "r", encoding="utf-8") as file:
+            
             for line in file:
   
                 competitions.append(line.strip())

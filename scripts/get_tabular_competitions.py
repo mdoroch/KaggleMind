@@ -21,8 +21,6 @@ def compet_parser(soup):
     return competition_links
 
 if __name__ == "__main__":
-    
-    print('ok')
 
     options = Options()
     options.headless = True
@@ -34,7 +32,7 @@ if __name__ == "__main__":
     
     while True:
 
-        file_path = "tabular_competitions.txt"
+        file_path = "data/tabular_competitions.txt"
         
         url = f"https://www.kaggle.com/competitions?tagIds=14101&listOption=completed&hostSegmentIdFilter=1&page={i}"
         

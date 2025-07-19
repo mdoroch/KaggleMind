@@ -1,46 +1,21 @@
-# import google.generativeai as genai
-
 from google import genai
 import json
-import os
 import argparse
 
 import re
 
 import json5
-
-# from helper_func.prompt_builder import build_postprocess_prompt
-
 from tqdm import tqdm
 
-def build_postprocess_prompt(competition_slug,
-                             competition_overview,
-                             data_description,
-                             discussion_texts):
-    return f"""
-    You are a Kaggle competition assistant.
+import sys
+import os
 
-    Given the following data:
+current_dir = os.path.dirname(os.path.abspath(__file__))
+libs_dir = os.path.join(current_dir, "../../")
+sys.path.append(os.path.abspath(libs_dir))
 
-    Overview:
-    {competition_overview}
+from helper_func.prompt_builder import build_postprocess_prompt
 
-    Data Description:
-    {data_description}
-
-    Top discussions and shared solutions from participants:
-    {discussion_texts}
-
-    Return a JSON object with the following fields:
-
-    - "competition_slug": "{competition_slug}",
-    - "overview_summary": a clean and concise summary of the competition overview (remove html, promotional or redundant phrases),
-    - "data_description_clean": a cleaned version of the dataset description, keeping only relevant technical or domain information,
-    - "feature_insights": a detailed description of the most important data features or feature engineering blocks that helped participants achieve good results.
-    - "modeling_strategies": a summary of the most common modeling strategies and approaches used by participants, including any specific algorithms or techniques that were particularly effective.
-
-    Only return the JSON. Do not include explanations.
-    """
 
 def generate_summary(client,
                      competition_slug: str, 
@@ -114,7 +89,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_file_clean", 
         type=str, 
-        default="data_postprocessed_clean.json",
+        default="data_postprocessed_clean_test.json",
         help="Name of the output JSON file"
     )
 

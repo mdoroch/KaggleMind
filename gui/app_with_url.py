@@ -6,7 +6,6 @@ from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 
 import json5
-import tqdm
 import os
 import re
 
@@ -21,13 +20,27 @@ import time
 import json
 import argparse
 
+import os
+import sys
 
-options = Options()
-options.headless = True
+current_dir = os.path.dirname(os.path.abspath(__file__))
+libs_dir = os.path.join(current_dir, "../")
+sys.path.append(os.path.abspath(libs_dir))
+
+from helper_func.prompt_builder import build_postprocess_prompt
+from scripts.run_rag import ask_rag_for_new_competition
+from scripts.get_data import parse_competition_overview, parse_competition_data_desc
 
 
-driver = webdriver.Chrome(options=options)
-wait = WebDriverWait(driver, 10)
+@st.cache_resource
+def init_driver():
+    options = Options()
+    options.headless = True
+    driver = webdriver.Chrome(options=options)
+    wait = WebDriverWait(driver, 10)
+    return driver, wait
+
+driver, wait = init_driver()
 
 # Page setup
 
@@ -58,75 +71,75 @@ This tool provides feature recommendations for Kaggle competitions based on comp
 
 
 # Initialize models (cached for performance)
-@st.cache_resource
-def load_models():
-    try:
-        # Load Sentence Transformer and FAISS index
-        model = SentenceTransformer("all-MiniLM-L6-v2")
-        index = faiss.read_index("models/rag_index/feature_index.faiss")
-        
-        # Load data
-        with open("data/json_dataset/data_postprocessed_clean.json", "r", encoding="utf-8") as f:
-            records = json.load(f)
-        
-        # Configure Gemini
-        genai.configure(api_key=os.environ['GEMINI_KEY'])  # Use st.secrets for production!
-        llm = genai.GenerativeModel("gemini-2.0-flash")
-    
-    except Exception as e:
-        st.error(f"ERROR: {e}")
-    return model, index, records, llm
 
-model, index, records, llm = load_models()
+
+# @st.cache_resource
+# def load_models():
+#     try:
+#         # Load Sentence Transformer and FAISS index
+#         model = SentenceTransformer("all-MiniLM-L6-v2")
+#         index = faiss.read_index("models/rag_index/feature_index.faiss")
+        
+#         # Load data
+#         with open("data/json_dataset/data_postprocessed_clean.json", "r", encoding="utf-8") as f:
+#             records = json.load(f)
+        
+#         # Configure Gemini
+#         genai.configure(api_key=os.environ['GEMINI_KEY'])  # Use st.secrets for production!
+#         llm = genai.GenerativeModel("gemini-2.0-flash")
+    
+#     except Exception as e:
+#         st.error(f"ERROR: {e}")
+#     return model, index, records, llm
+
+# model, index, records, llm = load_models()
 
 # RAG system functions
-def retrieve_relevant_docs(query: str, k: int = 5):
-    """Retrieve most relevant documents using vector similarity"""
-    query_embedding = model.encode(query)
-    if query_embedding.ndim == 1:
-        query_embedding = np.expand_dims(query_embedding, axis=0)
-    distances, indices = index.search(query_embedding, k)
-    return [records[i]["text"] for i in indices[0]], [records[i]["competition_slug"] for i in indices[0]]
+# def retrieve_relevant_docs(query: str, k: int = 5):
+#     """Retrieve most relevant documents using vector similarity"""
+#     query_embedding = model.encode(query)
+#     if query_embedding.ndim == 1:
+#         query_embedding = np.expand_dims(query_embedding, axis=0)
+#     distances, indices = index.search(query_embedding, k)
+#     return [records[i]["text"] for i in indices[0]], [records[i]["competition_slug"] for i in indices[0]]
 
-def build_inference_prompt(new_comp_overview: str, new_comp_data_desc: str, contexts: list[str]) -> str:
-    """Construct the LLM prompt with context"""
-    context_block = "\n---\n".join(contexts)
-    return f"""
-    You are a Kaggle competition expert. Based on these previous competition discussions:
-    {context_block}
+# def build_inference_prompt(new_comp_overview: str, new_comp_data_desc: str, contexts: list[str]) -> str:
+#     """Construct the LLM prompt with context"""
+#     context_block = "\n---\n".join(contexts)
+#     return f"""
+#     You are a Kaggle competition expert. Based on these previous competition discussions:
+#     {context_block}
     
-    New competition overview:
-    {new_comp_overview}
+#     New competition overview:
+#     {new_comp_overview}
     
-    Data description:
-    {new_comp_data_desc}
+#     Data description:
+#     {new_comp_data_desc}
     
-    Generate a JSON array of feature recommendations, each with:
-    - "feature_name": short name
-    - "description": rationale
+#     Generate a JSON array of feature recommendations, each with:
+#     - "feature_name": short name
+#     - "description": rationale
     
-    Return ONLY valid JSON, no other text.
-    """
+#     Return ONLY valid JSON, no other text.
+#     """
 
-def generate_answer(prompt: str):
-    """Get response from Gemini LLM"""
-    try:
-        response = llm.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        st.error(f"Generation error: {str(e)}")
-        return None
+# def generate_answer(prompt: str):
+#     """Get response from Gemini LLM"""
+#     try:
+#         response = llm.generate_content(prompt)
+#         return response.text
+#     except Exception as e:
+#         st.error(f"Generation error: {str(e)}")
+#         return None
 
-def ask_rag_for_new_competition(new_comp_overview: str, new_comp_data_desc: str):
-    """Main RAG pipeline function"""
-    with st.spinner("🔍 Searching similar competitions..."):
-        similar_docs, competition_idx = retrieve_relevant_docs(new_comp_overview)
+# def ask_rag_for_new_competition(new_comp_overview: str, new_comp_data_desc: str):
+#     """Main RAG pipeline function"""
+#     with st.spinner("🔍 Searching similar competitions..."):
+#         similar_docs, competition_idx = retrieve_relevant_docs(new_comp_overview)
     
-    with st.spinner("🧠 Generating recommendations..."):
-        prompt = build_inference_prompt(new_comp_overview, new_comp_data_desc, similar_docs)
-        return generate_answer(prompt), competition_idx
-    
-    
+#     with st.spinner("🧠 Generating recommendations..."):
+#         prompt = build_inference_prompt(new_comp_overview, new_comp_data_desc, similar_docs)
+#         return generate_answer(prompt), competition_idx
     
 def parse_json(raw_data):
     
@@ -138,9 +151,6 @@ def parse_json(raw_data):
         json_str = re.sub(r"^```json\s*|\s*```$", "", raw_data.strip())
         structured_info = json5.loads(json_str)
         
-        
-        structured_info
-        
     except Exception as e:
         print(f"Error: {e}")
         c+=1
@@ -149,36 +159,36 @@ def parse_json(raw_data):
         
     return structured_info
 
-def parse_competition_overview(url):
-    '''
-    Parse competition overview and evaluation.
-    '''
+# def parse_competition_overview(url):
+#     '''
+#     Parse competition overview and evaluation.
+#     '''
 
-    # url = f"https://www.kaggle.com/competitions/{competition_slug}/data"
+#     # url = f"https://www.kaggle.com/competitions/{competition_slug}/data"
 
-    driver.get(url)
+#     driver.get(url)
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    soup = BeautifulSoup(driver.page_source, "html.parser")
+#     soup = BeautifulSoup(driver.page_source, "html.parser")
 
-    # driver.quit()
+#     # driver.quit()
     
-    return ' '.join([s.get_text(separator=" ", strip=True) for s in soup.find_all("p")])
+#     return ' '.join([s.get_text(separator=" ", strip=True) for s in soup.find_all("p")])
 
-def parse_competition_data_desc(url):
+# def parse_competition_data_desc(url):
 
-    # url = f"https://www.kaggle.com/competitions/{competition_slug}/overview"
+#     # url = f"https://www.kaggle.com/competitions/{competition_slug}/overview"
 
-    driver.get(url)
+#     driver.get(url)
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    soup = BeautifulSoup(driver.page_source, "html.parser")
+#     soup = BeautifulSoup(driver.page_source, "html.parser")
 
-    feature_description = soup.get_text(separator=" ", strip=True)
+#     feature_description = soup.get_text(separator=" ", strip=True)
     
-    return feature_description
+#     return feature_description
 
 # User Interface
 with st.form("input_form"):
@@ -224,8 +234,15 @@ if submitted:
     
     if result:
         try:
-            features = parse_json(result)
+            responce = parse_json(result)
+            
+            features, code = responce['features'], responce['code']
+            
             st.success("✅ Features generated!")
+            
+            st.subheader("💻 Baseline Solution")
+
+            st.code(code, language="python")
 
             st.subheader("Similar Competitions:")
             for comp in similar_docs:
